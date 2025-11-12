@@ -1,17 +1,12 @@
-// Fichier: frontend/src/app/store.js (Mise à jour pour inclure un reducer temporaire)
+// Fichier: frontend/src/app/store.js (Mise à jour pour inclure authReducer)
 
-import { configureStore, createSlice } from '@reduxjs/toolkit'; // <-- MODIFICATION: Import de createSlice
-
-// Reducer temporaire vide pour éviter l'erreur de configuration du store
-const tempSlice = createSlice({
-    name: 'temp',
-    initialState: {},
-    reducers: {},
-});
+import { configureStore } from '@reduxjs/toolkit';
+// Import du reducer d'authentification
+import authReducer from '../features/auth/authSlice'; // <-- NOUVEL IMPORT
 
 export const store = configureStore({
     reducer: {
-        // MODIFICATION: Ajout du reducer temporaire
-        temp: tempSlice.reducer,
+        // Remplacement du reducer temporaire par le reducer d'authentification
+        auth: authReducer, // <-- MODIFICATION MAJEURE
     },
 });
