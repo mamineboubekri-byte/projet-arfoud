@@ -10,8 +10,8 @@ const { protect } = require('../middleware/authMiddleware');
 // Elle est protégée, donc 'protect' s'exécute en premier
 // Route de base /api/articles
 router.route('/')
-    .post(protect, createArticle)  // POST pour créer
-    .get(protect, getArticles);    // <--- NOUVELLE ROUTE : GET pour lire la liste
+    .get(protect, getArticles)    // <--- NOUVELLE ROUTE : GET pour lire la liste
+    .post(protect, createArticle);  // POST pour créer
 
 // Route pour gérer un article spécifique par ID
 // GET /api/articles/:id (Lecture)
