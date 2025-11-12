@@ -1,16 +1,23 @@
-// Fichier: frontend/src/components/ArticleItem.jsx
+// Fichier: frontend/src/components/ArticleItem.jsx (Mise à jour complète pour la modification)
 
 import React from 'react';
-import { FaEdit, FaTrash } from 'react-icons/fa'; // Importation des icônes
+import { FaEdit, FaTrash } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom'; // <-- NOUVEL IMPORT
 
-function ArticleItem({ article }) {
-    // Note: Les fonctions de modification/suppression seront ajoutées plus tard
-    const onDelete = () => {
+function ArticleItem({ article, onDelete }) {
+    const navigate = useNavigate(); // <-- NOUVEL HOOK
+
+    const onDeleteClick = () => { 
         if (window.confirm(`Êtes-vous sûr de vouloir supprimer l'article : ${article.nom}?`)) {
-            // Logique de suppression à implémenter ici (Redux/Context ou appel API direct)
-            console.log(`Tentative de suppression de l'article ID: ${article._id}`);
+            onDelete(article._id);
         }
     };
+
+    // NOUVELLE FONCTION : Gestion de la navigation vers la page de modification
+    const onEditClick = () => { // <-- AJOUT
+        navigate(`/edit-article/${article._id}`);
+    }; // <-- FIN AJOUT
+
 
     return (
         // La classe 'article' peut être définie dans votre main.css
@@ -35,14 +42,14 @@ function ArticleItem({ article }) {
             <div className='article-actions'>
                 <button 
                     className='btn btn-reverse btn-sm' 
-                    // onClick={onEdit} // Fonction de modification à implémenter
+                    onClick={onEditClick} // <-- LIAISON DU BOUTON MODIFIER
                     style={{ marginRight: '10px' }}
                 >
                     <FaEdit /> Modifier
                 </button>
                 <button 
                     className='btn btn-danger btn-sm' 
-                    onClick={onDelete} 
+                    onClick={onDeleteClick} 
                 >
                     <FaTrash /> Supprimer
                 </button>
