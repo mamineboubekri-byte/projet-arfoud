@@ -1,15 +1,17 @@
-// Fichier: frontend/src/features/auth/authSlice.js (NOUVEAU FICHIER)
+// Fichier: frontend/src/features/auth/authSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
+// URL de base de l'API (corrigée au pluriel /api/clients/)
+const API_URL = 'http://localhost:5000/api/clients/';
+
 // Vérification du localStorage pour l'utilisateur
-// Nous allons retirer la logique de localStorage des autres composants et la centraliser ici
 const client = JSON.parse(localStorage.getItem('client'));
 
 // État initial du slice
 const initialState = {
-    client: client ? client : null, // client est chargé si trouvé dans localStorage
+    client: client ? client : null,
     isError: false,
     isSuccess: false,
     isLoading: false,
@@ -17,30 +19,28 @@ const initialState = {
 };
 
 // ======================================================================
-// 1. ASYNC THUNKS (Fonctions pour les appels API)
+// ASYNC THUNKS (Fonctions pour les appels API)
 // ======================================================================
 
 // --- Enregistrement (Inscription) ---
 export const register = createAsyncThunk(
-    'auth/register', // Type d'action
+    'auth/register',
     async (client, thunkAPI) => {
         try {
-            const response = await axios.post('http://localhost:5000/api/clients', client);
+            // Utilise API_URL pour POST /api/clients/
+            const response = await axios.post(API_URL, client); 
             
-            // Si la réponse est OK, stocker l'utilisateur dans localStorage
             if (response.data) {
                 localStorage.setItem('client', JSON.stringify(response.data));
             }
 
             return response.data;
         } catch (error) {
-            // Gestion des erreurs
             const message = 
                 (error.response && error.response.data && error.response.data.message) || 
                 error.message || 
                 error.toString();
             
-            // Rejeter la promesse et envoyer le message d'erreur
             return thunkAPI.rejectWithValue(message);
         }
     }
@@ -51,7 +51,8 @@ export const login = createAsyncThunk(
     'auth/login',
     async (client, thunkAPI) => {
         try {
-            const response = await axios.post('http://localhost:5000/api/clients/login', client);
+            // Utilise API_URL + 'login' pour POST /api/clients/login
+            const response = await axios.post(API_URL + 'login', client);
             
             if (response.data) {
                 localStorage.setItem('client', JSON.stringify(response.data));
@@ -69,19 +70,17 @@ export const login = createAsyncThunk(
 
 // --- Déconnexion (Logout) ---
 export const logout = createAsyncThunk('auth/logout', async () => {
-    // La déconnexion côté frontend est simple : on retire l'utilisateur de localStorage
     localStorage.removeItem('client');
 });
 
 // ======================================================================
-// 2. AUTH SLICE
+// AUTH SLICE
 // ======================================================================
 
 export const authSlice = createSlice({
     name: 'auth',
     initialState,
     reducers: {
-        // Fonction pour réinitialiser les drapeaux (isSuccess, isError, message)
         reset: (state) => {
             state.isLoading = false;
             state.isError = false;
@@ -103,7 +102,7 @@ export const authSlice = createSlice({
             .addCase(register.rejected, (state, action) => {
                 state.isLoading = false;
                 state.isError = true;
-                state.message = action.payload; // Le message d'erreur de rejectWithValue
+                state.message = action.payload;
                 state.client = null;
             })
             

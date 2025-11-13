@@ -1,95 +1,113 @@
-// Fichier: frontend/src/pages/Login.jsx
+// Fichier: frontend/src/pages/Login.jsx (Refactorisation Redux)
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { FaSignInAlt } from 'react-icons/fa';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Import nécessaire pour l'API
+import { login, reset } from '../features/auth/authSlice';
 
 function Login() {
-  const [formData, setFormData] = useState({
-    email: '',
-    motDePasse: '',
-  });
+    const [formData, setFormData] = useState({
+        email: '',
+        motDePasse: '', // <-- MODIFICATION CLÉ 1: Changement de 'password' à 'motDePasse'
+    });
 
-  const { email, motDePasse } = formData;
-  const navigate = useNavigate();
+    const { email, motDePasse } = formData; // <-- MODIFICATION CLÉ 2: Changement de 'password' à 'motDePasse'
 
-  // 1. Gérer les changements dans le formulaire
-  const onChange = (e) => {
-    setFormData((prevState) => ({
-      ...prevState,
-      [e.target.name]: e.target.value,
-    }));
-  };
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-  // 2. Gérer la soumission du formulaire et l'appel API
-  const onSubmit = async (e) => {
-    e.preventDefault();
+    // Récupération de l'état (state) de Redux
+    const { client, isLoading, isError, isSuccess, message } = useSelector(
+        (state) => state.auth
+    );
 
-    const clientData = {
-      email,
-      motDePasse,
-    };
-    
-    try {
-        // Appel API POST /api/client/login (L'URL de base est dans main.jsx)
-        const response = await axios.post('/api/client/login', clientData);
-
-        if (response.data.token) {
-            // Stocker le token JWT pour maintenir la session
-            localStorage.setItem('client', JSON.stringify(response.data));
-            
-            alert('Connexion réussie !');
-            navigate('/dashboard'); // Rediriger
+    // Effet pour gérer les redirections et les messages
+    useEffect(() => {
+        if (isError) {
+            alert(message);
         }
 
-    } catch (error) {
-        // Gérer les erreurs (401 du Backend si identifiants incorrects, ou erreur réseau)
-        const errorMessage = (error.response && error.response.data && error.response.data.message) || 'Erreur lors de la connexion. Veuillez vérifier vos identifiants ou la connexion au serveur.';
-        alert(errorMessage);
-        console.error('Erreur de connexion:', error);
+        // Si la connexion est réussie ou si l'utilisateur est déjà connecté
+        if (isSuccess || client) {
+            navigate('/dashboard');
+        }
+
+        // Réinitialiser les drapeaux (isSuccess, isError) après leur utilisation
+        dispatch(reset());
+
+    }, [client, isError, isSuccess, message, navigate, dispatch]);
+
+
+    // Gère la mise à jour des champs du formulaire
+    const onChange = (e) => {
+        setFormData((prevState) => ({
+            ...prevState,
+            [e.target.name]: e.target.value,
+        }));
+    };
+
+    // Gère la soumission du formulaire
+    const onSubmit = (e) => {
+        e.preventDefault();
+
+        const clientData = {
+            email,
+            motDePasse, // <-- MODIFICATION CLÉ 3: Utiliser la variable motDePasse
+        };
+
+        // APPEL DE L'ACTION REDUX (remplace l'appel axios direct)
+        dispatch(login(clientData));
+    };
+
+    // Affichage de chargement
+    if (isLoading) {
+        return <h1>Chargement...</h1>;
     }
-  };
 
-  return (
-    <>
-      <section className='heading'>
-        <h1>Se Connecter</h1>
-        <p>Connectez-vous pour voir vos articles</p>
-      </section>
+    return (
+        <>
+            <section className='heading'>
+                <h1>
+                    <FaSignInAlt /> Se Connecter
+                </h1>
+                <p>Connectez-vous pour voir vos articles</p>
+            </section>
 
-      <section className='form'>
-        <form onSubmit={onSubmit}>
-          <div className='form-group'>
-            <input
-              type='email'
-              className='form-control'
-              id='email'
-              name='email'
-              value={email}
-              placeholder='Entrez votre email'
-              onChange={onChange}
-            />
-          </div>
-          <div className='form-group'>
-            <input
-              type='password'
-              className='form-control'
-              id='motDePasse'
-              name='motDePasse'
-              value={motDePasse}
-              placeholder='Entrez votre mot de passe'
-              onChange={onChange}
-            />
-          </div>
-          <div className='form-group'>
-            <button type='submit' className='btn btn-block'>
-              Se Connecter
-            </button>
-          </div>
-        </form>
-      </section>
-    </>
-  );
+            <section className='form'>
+                <form onSubmit={onSubmit}>
+                    <div className='form-group'>
+                        <input
+                            type='email'
+                            className='form-control'
+                            id='email'
+                            name='email'
+                            value={email}
+                            placeholder='Entrer votre email'
+                            onChange={onChange}
+                        />
+                    </div>
+                    <div className='form-group'>
+                        <input
+                            type='password'
+                            className='form-control'
+                            id='motDePasse' // <-- MODIFICATION CLÉ 4: Changer l'ID/name du champ
+                            name='motDePasse' // <-- MODIFICATION CLÉ 5: Changer l'ID/name du champ
+                            value={motDePasse} // <-- Utiliser la variable 'motDePasse'
+                            placeholder='Entrer votre mot de passe'
+                            onChange={onChange}
+                        />
+                    </div>
+
+                    <div className='form-group'>
+                        <button type='submit' className='btn btn-block'>
+                            Se Connecter
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </>
+    );
 }
 
 export default Login;

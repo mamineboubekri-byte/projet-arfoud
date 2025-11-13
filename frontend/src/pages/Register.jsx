@@ -1,8 +1,13 @@
-// Fichier: frontend/src/pages/Register.jsx (Version finale avec Axios robuste)
+// Fichier: frontend/src/pages/Register.jsx (Refactorisation Redux)
 
 import React, { useState, useEffect } from 'react';
+import { FaUser } from 'react-icons/fa'; // Ajout de l'icône si nécessaire
+import { useSelector, useDispatch } from 'react-redux'; // <-- NOUVEL IMPORT REDUX
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // <-- IMPORTATION AXIOS
+import { register, reset } from '../features/auth/authSlice'; // <-- NOUVEL IMPORT REDUX
+
+// L'importation d'axios n'est plus nécessaire ici.
+// import axios from 'axios'; 
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -14,7 +19,31 @@ function Register() {
   });
 
   const { nom, prenom, email, motDePasse, motDePasse2 } = formData;
+  
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Récupération de l'état (state) de Redux
+  const { client, isLoading, isError, isSuccess, message } = useSelector(
+    (state) => state.auth 
+  ); 
+
+  // Effet pour gérer les redirections et les messages
+  useEffect(() => {
+    if (isError) {
+      alert(message);
+    }
+
+    // Si l'inscription est réussie ou si l'utilisateur est déjà connecté
+    if (isSuccess || client) {
+      navigate('/dashboard');
+    }
+
+    // Réinitialiser les drapeaux (isSuccess, isError) après leur utilisation
+    dispatch(reset()); 
+
+  }, [client, isError, isSuccess, message, navigate, dispatch]);
+
 
   // 1. Gérer les changements dans le formulaire
   const onChange = (e) => {
@@ -38,37 +67,25 @@ function Register() {
         motDePasse,
       };
       
-      try {
-          // Appel API POST /api/client/register. L'URL de base est définie dans main.jsx.
-          const response = await axios.post('/api/client/register', clientData);
-
-          if (response.data.token) {
-              // Stockage du token JWT et des infos utilisateur
-              localStorage.setItem('client', JSON.stringify(response.data));
-              
-              alert('Inscription réussie ! Vous êtes maintenant connecté.');
-              navigate('/dashboard'); // Rediriger l'utilisateur vers le tableau de bord
-          }
-
-      } catch (error) {
-          console.error('Erreur de requête Axios complète:', error); 
-
-          // CAS 1: Le serveur a répondu (erreur 4xx ou 5xx)
-          if (error.response) {
-              const errorMessage = error.response.data.message || 'Erreur inconnue du serveur.';
-              alert(errorMessage);
-          // CAS 2: La requête a échoué avant d'atteindre le serveur (CORS ou Backend éteint)
-          } else {
-              alert('Impossible de se connecter au Backend. Vérifiez si votre serveur Node.js sur le port 5000 est démarré.');
-          }
-      }
+      // *** MODIFICATION CLÉ : APPEL DE L'ACTION REDUX 'register' ***
+      dispatch(register(clientData));
+      // *** FIN MODIFICATION ***
+      
+      // L'ancienne logique AXIOS est retirée et gérée par authSlice.js et l'useEffect ci-dessus
     }
   };
 
+  // Affichage de chargement
+  if (isLoading) {
+    return <h1>Chargement...</h1>;
+  }
+  
   return (
     <>
       <section className='heading'>
-        <h1>S'inscrire</h1>
+        <h1>
+            <FaUser /> S'inscrire
+        </h1>
         <p>Créez votre compte client</p>
       </section>
 
@@ -89,10 +106,10 @@ function Register() {
             <input
               type='text'
               className='form-control'
-              id='prenom' // Nouvelle ID
-              name='prenom' // Nouveau Name
-              value={prenom} // Nouvelle Value
-              placeholder='Entrez votre prénom' // Nouveau Placeholder
+              id='prenom' 
+              name='prenom' 
+              value={prenom} 
+              placeholder='Entrez votre prénom' 
               onChange={onChange}
             />
           </div>
