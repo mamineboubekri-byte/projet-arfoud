@@ -1,8 +1,8 @@
-// Fichier: frontend/src/components/ArticleForm.jsx (Contenu entier avec le nettoyage du useEffect)
+// Fichier: frontend/src/components/ArticleForm.jsx (Contenu entier avec la modification commentée)
 
 import React, { useState, useEffect, useRef } from 'react'; 
 import { useDispatch, useSelector } from 'react-redux';
-import { createArticle, getArticles, reset } from '../features/articles/articleSlice';
+import { createArticle, reset } from '../features/articles/articleSlice'; // 🚨 Suppression de getArticles
 
 function ArticleForm() {
     const dispatch = useDispatch();
@@ -19,7 +19,6 @@ function ArticleForm() {
 
     const { nom, description, prix, quantiteStock } = formData;
     
-    // Réf pour gérer le Mode Strict (nous la gardons, mais elle sert principalement au reset)
     const hasHandledSuccess = useRef(false);
 
     // --- CORRECTION DU useEffect ---
@@ -35,18 +34,16 @@ function ArticleForm() {
         if ((isSuccess || isError) && hasHandledSuccess.current) {
             return; 
         }
-
-        // 🚨 ATTENTION : Suppression de alert(message) ici. Le Dashboard s'en chargera.
         
         if (isSuccess) {
             // Réinitialisation du formulaire UNIQUEMENT si c'est la création.
-            // On vérifie le message pour s'assurer que c'est la création (non la suppression).
             if (message === "Article créé avec succès") {
                 setFormData({ nom: '', description: '', prix: '', quantiteStock: '' });
             }
             
-            // On s'assure que la liste se rafraîchit après une création ou une suppression
-            dispatch(getArticles()); 
+            // 🚨 SUPPRESSION : Nous n'appelons plus getArticles ici.
+            // Le Dashboard gère l'affichage des messages et le reset, ce qui 
+            // permet au Dashboard de se rafraîchir correctement.
         }
         
         // Marquer comme traité avant le reset pour que le deuxième rendu l'ignore.
@@ -55,13 +52,14 @@ function ArticleForm() {
         // 3. Le reset est appelé une fois le succès/échec traité
         dispatch(reset()); 
 
-    }, [isSuccess, isError, message, dispatch]); // 'nom' n'est plus nécessaire ici car on n'affiche plus l'alerte.
+    }, [isSuccess, isError, message, dispatch]);
 
 
     const onChange = (e) => {
         setFormData((prevState) => ({
             ...prevState,
             [e.target.name]: e.target.value,
+            // S'assurer que les nombres restent des chaînes de caractères pour les inputs
         }));
     };
 
@@ -71,10 +69,12 @@ function ArticleForm() {
         const articleData = {
             nom, 
             description,
+            // Conversion en nombre avant l'envoi au service Redux
             prix: parseFloat(prix || 0),
             quantiteStock: parseInt(quantiteStock || 0), 
         };
         
+        // Appel de l'action Redux
         dispatch(createArticle(articleData)); 
     };
     
@@ -86,8 +86,6 @@ function ArticleForm() {
         <section className='article-form'>
             <h3 style={{marginBottom: '15px'}}>Ajouter un Nouvel Article</h3>
             <form onSubmit={onSubmit}>
-                
-                {/* ... (Reste du formulaire inchangé) ... */}
                 
                 {/* Champ NOM */}
                 <div className='form-group'>
