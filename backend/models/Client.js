@@ -27,7 +27,6 @@ const clientSchema = new mongoose.Schema({
         type: String,
         required: true,
         minlength: 6, // Longueur minimale du mot de passe
-        select: false // Masque ce champ par défaut
     },
     dateCreation: {
         type: Date,

@@ -1,10 +1,10 @@
-// Fichier: backend/controllers/clientController.js
+// Fichier: backend/controllers/clientController.js (Contenu entier, à jour)
 
 const Client = require('../models/Client');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken'); 
+const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
-const saltRounds = 10; 
+const saltRounds = 10;
 
 // Génère le Token JWT (réutilisé pour un code plus propre)
 const generateToken = (id) => {
@@ -30,7 +30,7 @@ exports.registerClient = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Un client avec cet email existe déjà.');
     }
-    
+
     // Hachage du mot de passe
     const hashedPassword = await bcrypt.hash(motDePasse, saltRounds);
 
@@ -38,16 +38,16 @@ exports.registerClient = asyncHandler(async (req, res) => {
         nom,
         prenom,
         email,
-        motDePasse: hashedPassword 
+        motDePasse: hashedPassword
     });
 
     if (nouveauClient) {
-        res.status(201).json({ 
+        res.status(201).json({
             _id: nouveauClient._id,
             nom: nouveauClient.nom,
             prenom: nouveauClient.prenom,
             email: nouveauClient.email,
-            token: generateToken(nouveauClient._id), 
+            token: generateToken(nouveauClient._id),
             message: "Client enregistré avec succès."
         });
     } else {
@@ -60,29 +60,26 @@ exports.registerClient = asyncHandler(async (req, res) => {
 // @desc Authentifier un client
 // @route POST /api/clients/login
 // @access Public
-exports.loginClient = asyncHandler(async (req, res) => { 
+exports.loginClient = asyncHandler(async (req, res) => {
     const { email, motDePasse } = req.body;
 
-    // 1. Chercher le client par email, EN INCLUANT EXPLICITEMENT le mot de passe
-    const client = await Client.findOne({ email }).select('+motDePasse'); 
+    // 1. Trouver le client par email
+    const client = await Client.findOne({ email });
 
-    // 2. Vérification de l'utilisateur et du mot de passe
-    if (
-        client && 
-        (await bcrypt.compare(motDePasse, client.motDePasse))
-    ) {
-        res.json({
-            _id: client._id,
+    // 2. Vérification: client existe ET mot de passe correspond
+    // On vérifie que client n'est PAS null et que le mot de passe correspond.
+    if (client && (await bcrypt.compare(motDePasse, client.motDePasse))) { 
+        // Succès
+        res.status(200).json({
+            _id: client._id, 
             nom: client.nom,
-            prenom: client.prenom,
             email: client.email,
             token: generateToken(client._id),
-            message: "Connexion réussie. Bienvenue de nouveau !"
         });
     } else {
-        // En cas d'échec de la recherche ou de la comparaison
+        // Échec de la connexion. Status 401 pour non autorisé.
         res.status(401); 
-        throw new Error('Identifiants invalides');
+        throw new Error('Identifiants invalides (Email ou mot de passe incorrect).'); 
     }
 });
 
@@ -90,7 +87,7 @@ exports.loginClient = asyncHandler(async (req, res) => {
 // @desc Récupérer le profil d'un client (Route Protégée)
 // @route GET /api/clients/profile
 // @access Private
-exports.getClientProfile = asyncHandler(async (req, res) => { 
+exports.getClientProfile = asyncHandler(async (req, res) => {
     // Les infos du client sont disponibles via req.client (ajoutées par le middleware)
     res.status(200).json({
         _id: req.client._id,
