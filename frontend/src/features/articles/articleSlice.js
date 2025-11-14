@@ -1,4 +1,4 @@
-// Fichier: frontend/src/features/articles/articleSlice.js (Contenu entier)
+// Fichier: frontend/src/features/articles/articleSlice.js (Contenu entier avec la modification commentée)
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import articleService from './articleService';
@@ -66,6 +66,25 @@ export const deleteArticle = createAsyncThunk(
     }
 );
 
+// 🚨 DÉBUT DE LA MODIFICATION POUR UPDATE
+// 4. Mettre à jour un article
+export const updateArticle = createAsyncThunk( 
+    'articles/update',
+    async (articleData, thunkAPI) => {
+        try {
+            const token = thunkAPI.getState().auth.client.token;
+            return await articleService.updateArticle(articleData, token);
+        } catch (error) {
+            const message =
+                (error.response && error.response.data && error.response.data.message) ||
+                error.message ||
+                error.toString();
+            return thunkAPI.rejectWithValue(message);
+        }
+    }
+);
+// 🚨 FIN DE LA MODIFICATION POUR UPDATE
+
 // ----------------------------------------------------------------------
 // Création du Slice
 export const articleSlice = createSlice({
@@ -130,7 +149,35 @@ export const articleSlice = createSlice({
                 state.isLoading = false;
                 state.isError = true;
                 state.message = action.payload;
+            })
+            
+            // 🚨 DÉBUT DE LA MODIFICATION POUR UPDATE
+            // ==================== UPDATE ARTICLE ====================
+            .addCase(updateArticle.pending, (state) => {
+                state.isLoading = true;
+                state.isSuccess = false; 
+            })
+            .addCase(updateArticle.fulfilled, (state, action) => { 
+                state.isLoading = false;
+                state.isSuccess = true;
+                state.message = "Article modifié avec succès"; // 🚨 NOUVEAU MESSAGE SPÉCIFIQUE
+                
+                // Trouver l'index de l'article mis à jour
+                const index = state.articles.findIndex(
+                    (article) => article._id === action.payload._id
+                );
+                
+                // Remplacer l'ancien article par le nouveau dans le tableau
+                if (index !== -1) {
+                    state.articles[index] = action.payload;
+                }
+            })
+            .addCase(updateArticle.rejected, (state, action) => {
+                state.isLoading = false;
+                state.isError = true;
+                state.message = action.payload;
             });
+            // 🚨 FIN DE LA MODIFICATION POUR UPDATE
     },
 });
 
