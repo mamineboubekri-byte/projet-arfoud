@@ -1,17 +1,34 @@
-// Fichier: frontend/src/pages/EditArticle.jsx (Contenu entier avec la modification commentée)
+// Fichier: frontend/src/pages/EditArticle.jsx (Contenu entier, refactorisé pour utiliser Redux)
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; 
-import axios from 'axios';
-// NOUVEL IMPORT : Toast
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify'; 
+// 🚨 MODIFICATION DES IMPORTS: AJOUT de getArticles
+import { useSelector, useDispatch } from 'react-redux'; 
+import { updateArticle, reset as resetArticleState, getArticles } from '../features/articles/articleSlice';
+
+// Si vous aviez un import axios ici, vous devez le SUPPRIMER
 
 function EditArticle() {
     const navigate = useNavigate();
-    // Utilisation de useParams pour obtenir l'ID de l'article depuis l'URL
-    const { id } = useParams(); 
+    const dispatch = useDispatch(); 
+    const { id } = useParams();
 
-    // État pour stocker les données de l'article (initialisé avec des chaînes vides)
+    // 🚨 NOUVEAU: Récupération de l'état Redux pour l'article et l'authentification
+    const { 
+        articles, 
+        isError, 
+        isSuccess, 
+        isLoading,
+        message: articleMessage
+    } = useSelector((state) => state.article);
+    
+    const { client } = useSelector((state) => state.auth); 
+
+    // Trouver l'article actuel dans le store (remplace l'appel API GET initial)
+    const currentArticle = articles.find(article => article._id === id);
+
+    // État local pour le formulaire
     const [formData, setFormData] = useState({
         nom: '', 
         description: '',
@@ -19,15 +36,12 @@ function EditArticle() {
         quantiteStock: '',
     });
 
-    // État pour gérer les messages et le chargement
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
     const { nom, description, prix, quantiteStock } = formData;
-    const client = JSON.parse(localStorage.getItem('client'));
-    const token = client ? client.token : null;
+    const dispatchHandledRef = useRef(false);
 
-    // Redirection si non connecté
+    // ----------------------------------------------------
+    // 1. Redirection si non connecté (Auth)
+    // ----------------------------------------------------
     useEffect(() => {
         if (!client) {
             navigate('/login');
@@ -35,51 +49,54 @@ function EditArticle() {
     }, [client, navigate]);
 
     // ----------------------------------------------------
-    // 1. FONCTION POUR CHARGER LES DONNÉES DE L'ARTICLE EXISTANT
+    // 2. Pré-remplissage du formulaire et Chargement des articles (SI ABSENTS)
     // ----------------------------------------------------
     useEffect(() => {
-        const fetchArticleData = async () => {
-            if (!token || !id) {
-                setLoading(false);
-                return;
-            }
+        // 🚨 VÉRIFICATION ET CHARGEMENT DE SÉCURITÉ
+        // Si le tableau est vide, on déclenche le chargement des articles
+        if (articles.length === 0) {
+            dispatch(getArticles());
+        }
 
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            };
+        if (currentArticle) {
+             // Pré-remplir le formulaire avec les données existantes du store Redux
+            setFormData({
+                nom: currentArticle.nom || '',
+                description: currentArticle.description || '',
+                prix: currentArticle.prix.toString(), 
+                quantiteStock: currentArticle.quantiteStock.toString(),
+            });
+        }
+    }, [currentArticle, articles, dispatch]); // Dépendances mises à jour
 
-            try {
-                // Appel API GET /api/articles/:id
-                const response = await axios.get(`http://localhost:5000/api/articles/${id}`, config);
-                const articleData = response.data;
-
-                // Pré-remplir le formulaire avec les données existantes
-                setFormData({
-                    nom: articleData.nom || '',
-                    description: articleData.description || '',
-                    // Convertir en chaînes pour éviter l'affichage de '0' 
-                    prix: articleData.prix.toString(), 
-                    quantiteStock: articleData.quantiteStock.toString(),
-                });
-                setLoading(false);
-
-            } catch (err) {
-                console.error('Erreur lors du chargement de l\'article:', err);
-                const errorMessage = 'Impossible de charger les données de l\'article. Peut-être non autorisé.';
-                setError(errorMessage);
-                // MODIFICATION : Remplacement de l'alerte locale par un toast
-                toast.error(errorMessage);
-                setLoading(false);
-            }
-        };
-
-        fetchArticleData();
-    }, [id, token, navigate]);
 
     // ----------------------------------------------------
-    // 2. FONCTION POUR GÉRER LE CHANGEMENT DES CHAMPS
+    // 3. Gestion des messages Redux et Redirection (Post-soumission)
+    // ----------------------------------------------------
+    useEffect(() => {
+        // Logique pour gérer les messages et la redirection après le dispatch
+        if ((!isError && !isSuccess) || dispatchHandledRef.current) {
+            dispatchHandledRef.current = false; 
+            return;
+        }
+
+        if (isError) {
+            toast.error(articleMessage);
+        }
+
+        if (isSuccess) {
+            toast.success(articleMessage);
+            navigate('/dashboard'); 
+        }
+
+        dispatchHandledRef.current = true;
+        dispatch(resetArticleState());
+        
+    }, [isError, isSuccess, articleMessage, dispatch, navigate]);
+
+
+    // ----------------------------------------------------
+    // 4. Fonction pour gérer le changement des champs
     // ----------------------------------------------------
     const onChange = (e) => {
         setFormData((prevState) => ({
@@ -89,12 +106,13 @@ function EditArticle() {
     };
 
     // ----------------------------------------------------
-    // 3. FONCTION POUR LA SOUMISSION DU FORMULAIRE (UPDATE)
+    // 5. Soumission du formulaire (UPDATE via Redux Thunk)
     // ----------------------------------------------------
-    const onSubmit = async (e) => {
+    const onSubmit = (e) => {
         e.preventDefault();
         
-        const updatedArticleData = {
+        const articleToUpdate = {
+            _id: id, // ID de l'article provenant de l'URL
             nom, 
             description,
             // S'assurer de la conversion avant l'envoi
@@ -102,37 +120,21 @@ function EditArticle() {
             quantiteStock: parseInt(quantiteStock || 0), 
         };
         
-        const config = {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        };
-
-        try {
-            // Appel API PUT pour la modification
-            await axios.put(`http://localhost:5000/api/articles/${id}`, updatedArticleData, config);
-            
-            // MODIFICATION : Remplacement de l'alerte par un toast de succès
-            toast.success(`Article "${nom}" mis à jour avec succès.`);
-            // Rediriger l'utilisateur vers le dashboard après la modification
-            navigate('/dashboard');
-            
-        } catch (error) {
-            const errorMessage = (error.response && error.response.data && error.response.data.message) || 'Erreur lors de la mise à jour de l\'article.';
-            // MODIFICATION : Remplacement de l'alerte par un toast d'erreur
-            toast.error(errorMessage);
-            console.error('Erreur de mise à jour:', error);
-        }
+        // Dispatch de l'action Redux au lieu de l'appel axios direct
+        dispatch(updateArticle(articleToUpdate));
     };
 
-    // Rendu du composant (Chargement / Erreur)
-    if (loading) {
-        return <h1>Chargement des données de l'article...</h1>;
+    // Rendu du composant (Chargement / Article introuvable)
+    if (isLoading) {
+        return <h1>Mise à jour de l'article en cours...</h1>;
     }
-
-    if (error) {
-        // La gestion de l'erreur dans le JSX peut rester car elle bloque l'affichage du formulaire
-        return <h1>Erreur: {error}</h1>;
+    
+    // Si la liste est en cours de chargement, on affiche un message d'attente
+    // La première condition (articles.length === 0) est maintenant gérée par le dispatch ci-dessus
+    // Si currentArticle est introuvable après le chargement, on affiche l'erreur.
+    if (!currentArticle) {
+        // Affiche un message si l'article n'a pas été trouvé dans le store Redux
+        return <h1>Article introuvable. Veuillez retourner au Tableau de Bord.</h1>;
     }
 
     return (

@@ -1,18 +1,20 @@
-// Fichier: frontend/src/pages/Login.jsx (Refactorisation Redux)
+// Fichier: frontend/src/pages/Login.jsx (Contenu entier Corrigé)
 
 import React, { useState, useEffect } from 'react';
 import { FaSignInAlt } from 'react-icons/fa';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+// 🚨 CORRECTION 1.1: Import de toast
+import { toast } from 'react-toastify'; 
 import { login, reset } from '../features/auth/authSlice';
 
 function Login() {
     const [formData, setFormData] = useState({
         email: '',
-        motDePasse: '', // <-- MODIFICATION CLÉ 1: Changement de 'password' à 'motDePasse'
+        motDePasse: '',
     });
 
-    const { email, motDePasse } = formData; // <-- MODIFICATION CLÉ 2: Changement de 'password' à 'motDePasse'
+    const { email, motDePasse } = formData;
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -25,12 +27,13 @@ function Login() {
     // Effet pour gérer les redirections et les messages
     useEffect(() => {
         if (isError) {
-            alert(message);
+            // 🚨 CORRECTION 1.2: Remplacer alert par toast.error
+            toast.error(message); 
         }
 
         // Si la connexion est réussie ou si l'utilisateur est déjà connecté
         if (isSuccess || client) {
-            navigate('/dashboard');
+            navigate('/');
         }
 
         // Réinitialiser les drapeaux (isSuccess, isError) après leur utilisation
@@ -53,7 +56,7 @@ function Login() {
 
         const clientData = {
             email,
-            motDePasse, // <-- MODIFICATION CLÉ 3: Utiliser la variable motDePasse
+            motDePasse,
         };
 
         // APPEL DE L'ACTION REDUX (remplace l'appel axios direct)
@@ -91,9 +94,9 @@ function Login() {
                         <input
                             type='password'
                             className='form-control'
-                            id='motDePasse' // <-- MODIFICATION CLÉ 4: Changer l'ID/name du champ
-                            name='motDePasse' // <-- MODIFICATION CLÉ 5: Changer l'ID/name du champ
-                            value={motDePasse} // <-- Utiliser la variable 'motDePasse'
+                            id='motDePasse'
+                            name='motDePasse'
+                            value={motDePasse}
                             placeholder='Entrer votre mot de passe'
                             onChange={onChange}
                         />

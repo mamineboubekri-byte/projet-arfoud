@@ -1,4 +1,4 @@
-// Fichier: frontend/src/features/articles/articleService.js
+// Fichier: frontend/src/features/articles/articleService.js (Contenu entier avec la modification commentée)
 
 import axios from 'axios';
 
@@ -50,6 +50,25 @@ const deleteArticle = async (articleId, token) => {
     return response.data; 
 };
 
+// 🚨 DÉBUT DE LA MODIFICATION POUR UPDATE
+// Fonction pour Mettre à jour un article
+const updateArticle = async (articleData, token) => {
+    // articleData doit contenir l'ID de l'article (ex: { _id, nom, description, ... })
+    const articleId = articleData._id;
+
+    const config = {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    };
+    
+    // Appel PUT pour mettre à jour l'article via son ID
+    const response = await axios.put(API_URL + '/' + articleId, articleData, config);
+
+    return response.data; 
+};
+// 🚨 FIN DE LA MODIFICATION POUR UPDATE
+
 
 // On exporte toutes les fonctions du service
 const articleService = {
@@ -57,6 +76,7 @@ const articleService = {
     getArticles,
     deleteArticle,
     // Les fonctions pour l'édition (update) seront ajoutées plus tard si besoin
+    updateArticle, // 🚨 AJOUT DE updateArticle
 };
 
 export default articleService;

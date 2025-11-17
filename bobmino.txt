@@ -1,0 +1,17 @@
+accès mongodb
+Username
+mamineboubekri_db_user
+Password
+pIxYO5pypL2GU22V
+
+lien de connexion mongodb :
+
+mongodb+srv://mamineboubekri_db_user:pIxYO5pypL2GU22V@cluster0.sy8kzv5.mongodb.net/?appName=Cluster0
+
+
+
+.env file :
+
+	mot de passe jwtoken :
+
+nBBZpM2RxYm2•••••••••••••••••••ao8cVc7XU4vQ

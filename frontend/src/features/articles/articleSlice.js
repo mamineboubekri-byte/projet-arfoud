@@ -1,9 +1,8 @@
-// Fichier: frontend/src/features/articles/articleSlice.js (Contenu entier avec la modification commentée)
+// Fichier: frontend/src/features/articles/articleSlice.js (Contenu entier Corrigé)
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import articleService from './articleService';
 
-// Définition de l'état initial
 const initialState = {
     articles: [],
     isError: false,
@@ -12,17 +11,27 @@ const initialState = {
     message: '',
 };
 
-// ----------------------------------------------------------------------
-// 1. Créer un nouvel article
+// ==================== THUNKS ASYNCHRONES ====================
+
+// Créer un nouvel article
 export const createArticle = createAsyncThunk(
-    'articles/create',
+    'article/create',
     async (articleData, thunkAPI) => {
         try {
-            const token = thunkAPI.getState().auth.client.token;
+            // 🚨 CORRECTION 1.1: Vérification de l'existence du jeton
+            const client = thunkAPI.getState().auth.client;
+            if (!client || !client.token) {
+                 return thunkAPI.rejectWithValue('Non autorisé : Connexion requise.');
+            }
+            const token = client.token;
+            // Fin de la correction
+            
             return await articleService.createArticle(articleData, token);
         } catch (error) {
             const message =
-                (error.response && error.response.data && error.response.data.message) ||
+                (error.response &&
+                    error.response.data &&
+                    error.response.data.message) ||
                 error.message ||
                 error.toString();
             return thunkAPI.rejectWithValue(message);
@@ -30,17 +39,25 @@ export const createArticle = createAsyncThunk(
     }
 );
 
-// ----------------------------------------------------------------------
-// 2. Récupérer les articles de l'utilisateur
+// Obtenir tous les articles
 export const getArticles = createAsyncThunk(
-    'articles/getAll',
+    'article/getAll',
     async (_, thunkAPI) => {
         try {
-            const token = thunkAPI.getState().auth.client.token;
+            // 🚨 CORRECTION CRITIQUE 2.1: Vérification de l'existence du jeton
+            const client = thunkAPI.getState().auth.client;
+            if (!client || !client.token) {
+                 return thunkAPI.rejectWithValue('Non autorisé : Connexion requise pour charger les articles.');
+            }
+            const token = client.token;
+            // Fin de la correction
+            
             return await articleService.getArticles(token);
         } catch (error) {
             const message =
-                (error.response && error.response.data && error.response.data.message) ||
+                (error.response &&
+                    error.response.data &&
+                    error.response.data.message) ||
                 error.message ||
                 error.toString();
             return thunkAPI.rejectWithValue(message);
@@ -48,45 +65,60 @@ export const getArticles = createAsyncThunk(
     }
 );
 
-// ----------------------------------------------------------------------
-// 3. Supprimer un article
-export const deleteArticle = createAsyncThunk(
-    'articles/delete',
-    async (id, thunkAPI) => {
-        try {
-            const token = thunkAPI.getState().auth.client.token;
-            return await articleService.deleteArticle(id, token);
-        } catch (error) {
-            const message =
-                (error.response && error.response.data && error.response.data.message) ||
-                error.message ||
-                error.toString();
-            return thunkAPI.rejectWithValue(message);
-        }
-    }
-);
-
-// 🚨 DÉBUT DE LA MODIFICATION POUR UPDATE
-// 4. Mettre à jour un article
-export const updateArticle = createAsyncThunk( 
-    'articles/update',
+// Mettre à jour un article
+export const updateArticle = createAsyncThunk(
+    'article/update',
     async (articleData, thunkAPI) => {
         try {
-            const token = thunkAPI.getState().auth.client.token;
+            // 🚨 CORRECTION 3.1: Vérification de l'existence du jeton
+            const client = thunkAPI.getState().auth.client;
+            if (!client || !client.token) {
+                 return thunkAPI.rejectWithValue('Non autorisé : Connexion requise.');
+            }
+            const token = client.token;
+            // Fin de la correction
+            
             return await articleService.updateArticle(articleData, token);
         } catch (error) {
             const message =
-                (error.response && error.response.data && error.response.data.message) ||
+                (error.response &&
+                    error.response.data &&
+                    error.response.data.message) ||
                 error.message ||
                 error.toString();
             return thunkAPI.rejectWithValue(message);
         }
     }
 );
-// 🚨 FIN DE LA MODIFICATION POUR UPDATE
 
-// ----------------------------------------------------------------------
-// Création du Slice
+// Supprimer un article
+export const deleteArticle = createAsyncThunk(
+    'article/delete',
+    async (id, thunkAPI) => {
+        try {
+            // 🚨 CORRECTION 4.1: Vérification de l'existence du jeton
+            const client = thunkAPI.getState().auth.client;
+            if (!client || !client.token) {
+                 return thunkAPI.rejectWithValue('Non autorisé : Connexion requise.');
+            }
+            const token = client.token;
+            // Fin de la correction
+            
+            return await articleService.deleteArticle(id, token);
+        } catch (error) {
+            const message =
+                (error.response &&
+                    error.response.data &&
+                    error.response.data.message) ||
+                error.message ||
+                error.toString();
+            return thunkAPI.rejectWithValue(message);
+        }
+    }
+);
+
+// ==================== SLICE ====================
+
 export const articleSlice = createSlice({
     name: 'article',
     initialState,
@@ -98,75 +130,54 @@ export const articleSlice = createSlice({
             // ==================== CREATE ARTICLE ====================
             .addCase(createArticle.pending, (state) => {
                 state.isLoading = true;
-                state.isSuccess = false; // Sécurité
+                state.isSuccess = false;
+                state.isError = false; // Réinitialiser l'erreur
             })
             .addCase(createArticle.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isSuccess = true;
-                // Ajoute le nouvel article au début du tableau existant
+                state.message = 'Article créé avec succès'; 
                 state.articles.unshift(action.payload);
-                state.message = "Article créé avec succès"; // 🚨 NOUVEAU MESSAGE SPÉCIFIQUE
             })
             .addCase(createArticle.rejected, (state, action) => {
-                state.isLoading = false;
-                state.isError = true;
-                state.articles = [];
-                state.message = action.payload;
-            })
-
-            // ==================== GET ARTICLES ====================
-            .addCase(getArticles.pending, (state) => {
-                state.isLoading = true;
-            })
-            .addCase(getArticles.fulfilled, (state, action) => {
-                state.isLoading = false;
-                // state.isSuccess = true; // 🚨 LIGNE RETIRÉE
-                state.articles = action.payload;
-            })
-            .addCase(getArticles.rejected, (state, action) => {
-                state.isLoading = false;
-                // state.isError = true; // 🚨 LIGNE RETIRÉE
-                state.message = action.payload;
-                state.articles = [];
-            })
-
-            // ==================== DELETE ARTICLE ====================
-            .addCase(deleteArticle.pending, (state) => {
-                state.isLoading = true;
-                state.isSuccess = false; // Sécurité
-            })
-            .addCase(deleteArticle.fulfilled, (state, action) => {
-                state.isLoading = false;
-                state.isSuccess = true;
-                const deletedId = action.meta.arg;
-                state.articles = state.articles.filter(
-                    (article) => article._id !== deletedId
-                );
-                // state.message était "action.payload.message" avant, nous le standardisons
-                state.message = "Article supprimé avec succès"; // 🚨 NOUVEAU MESSAGE SPÉCIFIQUE
-            })
-            .addCase(deleteArticle.rejected, (state, action) => {
                 state.isLoading = false;
                 state.isError = true;
                 state.message = action.payload;
             })
             
-            // 🚨 DÉBUT DE LA MODIFICATION POUR UPDATE
+            // ==================== GET ARTICLES ====================
+            .addCase(getArticles.pending, (state) => {
+                state.isLoading = true;
+                state.isSuccess = false;
+            })
+            .addCase(getArticles.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.isSuccess = true;
+                state.message = 'Articles chargés'; // Changement pour plus de clarté
+                state.articles = action.payload;
+            })
+            .addCase(getArticles.rejected, (state, action) => {
+                state.isLoading = false;
+                state.isError = true;
+                state.message = action.payload;
+                state.articles = []; // Vider le tableau en cas d'erreur de chargement
+            })
+
             // ==================== UPDATE ARTICLE ====================
             .addCase(updateArticle.pending, (state) => {
                 state.isLoading = true;
-                state.isSuccess = false; 
+                state.isSuccess = false;
             })
-            .addCase(updateArticle.fulfilled, (state, action) => { 
+            .addCase(updateArticle.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isSuccess = true;
-                state.message = "Article modifié avec succès"; // 🚨 NOUVEAU MESSAGE SPÉCIFIQUE
-                
+                state.message = "Article modifié avec succès"; 
+
                 // Trouver l'index de l'article mis à jour
                 const index = state.articles.findIndex(
                     (article) => article._id === action.payload._id
                 );
-                
+
                 // Remplacer l'ancien article par le nouveau dans le tableau
                 if (index !== -1) {
                     state.articles[index] = action.payload;
@@ -176,8 +187,29 @@ export const articleSlice = createSlice({
                 state.isLoading = false;
                 state.isError = true;
                 state.message = action.payload;
+            })
+            
+            // ==================== DELETE ARTICLE ====================
+            .addCase(deleteArticle.pending, (state) => {
+                state.isLoading = true;
+                state.isSuccess = false;
+            })
+            .addCase(deleteArticle.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.isSuccess = true;
+                state.message = 'Article supprimé avec succès';
+                
+                // action.payload est maintenant l'objet retourné par le service (devrait être l'ID)
+                // L'hypothèse est que le service retourne { id: l'ID supprimé }
+                state.articles = state.articles.filter(
+                    (article) => article._id !== action.payload.id 
+                );
+            })
+            .addCase(deleteArticle.rejected, (state, action) => {
+                state.isLoading = false;
+                state.isError = true;
+                state.message = action.payload;
             });
-            // 🚨 FIN DE LA MODIFICATION POUR UPDATE
     },
 });
 

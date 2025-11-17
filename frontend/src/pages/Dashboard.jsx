@@ -1,8 +1,9 @@
 // Fichier: frontend/src/pages/Dashboard.jsx 
 
-import React, { useEffect, useRef } from 'react'; // 🚨 AJOUT DE useRef
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { toast } from 'react-toastify'; 
 
 // Importation des composants et des actions REDUX
 import ArticleForm from '../components/ArticleForm';
@@ -21,14 +22,16 @@ function Dashboard() {
         articles,
         isLoading,
         isError,
-        isSuccess, // 🚨 RÉCUPÉRATION DU DRAPEAU isSuccess
+        isSuccess,
         message
     } = useSelector((state) => state.article);
 
-    // 🚨 NOUVEAU : Réf pour ignorer le double appel de useEffect en Mode Strict
-    const alertHandledRef = useRef(false);
+    // Réf pour bloquer le double appel de getArticles en Mode Strict
+    const articlesFetchedRef = useRef(false);
+    const alertHandledRef = useRef(false); 
 
-    // 2. Gestion de l'état (Redirection, Erreurs, Chargement des données)
+
+    // 2. Gestion de l'état Auth et du Chargement Initial des articles
     useEffect(() => {
         if (!client) {
             navigate('/login');
@@ -37,64 +40,64 @@ function Dashboard() {
             return;
         }
 
-        if (isError) {
-            console.error(message);
-            // Nous laissons l'alerte d'erreur ici pour les erreurs de chargement initiales.
-            alert(message); 
+        // Appel de getArticles uniquement si ce n'est pas le Strict Mode
+        if (articlesFetchedRef.current === false) {
+            dispatch(getArticles()); 
+            articlesFetchedRef.current = true;
         }
-
-        // Appel de l'action asynchrone REDUX pour charger la liste
-        dispatch(getArticles()); 
-
+        
+        // Nettoyage de l'état Redux au démontage du composant
         return () => {
             dispatch(resetArticleState());
         };
-        // Suppression de 'message' des dépendances ici pour éviter de relancer getArticles à chaque changement de message
-    }, [client, navigate, isError, dispatch]);
+        // Dépendances minimales pour le chargement initial.
+    }, [client, navigate, dispatch]);
 
 
-    // 🚨 NOUVEAU useEffect pour GÉRER LES MESSAGES DE SUCCÈS/ERREUR APRÈS ACTION (Création/Suppression) 🚨
+    // 3. Gestion des messages de Succès/Erreur APRÈS ACTION et RECHARGEMENT
     useEffect(() => {
-        
-        // 1. Si les drapeaux sont à false, on réinitialise la référence et on sort.
-        if (!isError && !isSuccess) {
-            alertHandledRef.current = false;
+        // Sortir si aucun message ou si déjà traité
+        if ((!isError && !isSuccess) || alertHandledRef.current) {
+            alertHandledRef.current = false; 
             return;
         }
 
-        // 2. Bloquer le double message en Mode Strict si déjà traité.
-        if ((isSuccess || isError) && alertHandledRef.current) {
-            return;
+        // Utilisation de toastify pour les messages
+        if (isError) {
+            toast.error(message);
         }
 
-        // 3. Afficher le message (Succès ou Erreur)
-        if (message) {
-            // Note: L'alerte d'erreur lors du chargement initial est gérée par le useEffect principal.
-            // Ceci gère les erreurs post-action (création/suppression) ou le succès.
-            alert(message);
+        if (isSuccess && message) {
+            // Afficher le toast pour les actions utilisateur réussies
+            if (message !== 'Articles chargés') { 
+                toast.success(message);
+            }
+            
+            // 🚨 CORRECTION 2.1: Recharger la liste des articles après toute action réussie (Création/Suppression/Modification)
+            if (message.includes('succès')) { 
+                 dispatch(getArticles()); 
+            }
         }
         
-        // 4. Marquer comme traité avant le reset.
+        // Marquer comme traité et réinitialiser l'état
         alertHandledRef.current = true;
-        
-        // 5. Réinitialiser l'état global du slice (isSuccess/isError/message)
         dispatch(resetArticleState());
 
-    }, [isSuccess, isError, message, dispatch]); // Dépendances: isSuccess est maintenant surveillé
+    }, [isSuccess, isError, message, dispatch]);
 
 
-    // 3. Fonction de suppression (Appelle l'action deleteArticle de Redux)
+    // 4. Fonction de suppression (Appelle l'action deleteArticle de Redux)
     const onDelete = (articleId) => {
         dispatch(deleteArticle(articleId));
     };
 
 
-    // 4. Affichage des états (Chargement/Erreur)
+    // 5. Affichage des états (Chargement/Erreur)
     if (isLoading) {
         return <h1>Chargement des articles...</h1>;
     }
 
-    // 5. Rendu principal
+    // 6. Rendu principal
     return (
         <>
             <section className='heading'>
@@ -109,6 +112,7 @@ function Dashboard() {
                     Vos Articles ({Array.isArray(articles) ? articles.length : 0})
                 </h3>
 
+                {/* Assurer que 'articles' est un tableau pour le rendu */}
                 {Array.isArray(articles) && articles.length > 0 ? (
                     <div className='articles'>
                         {articles.map((article) => (
