@@ -1,217 +1,309 @@
-// Fichier: frontend/src/pages/EditArticle.jsx (Contenu entier avec la modification commentée)
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; 
-import axios from 'axios';
-// NOUVEL IMPORT : Toast
-import { toast } from 'react-toastify'; 
+import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { toast } from 'react-toastify';
+import { FaEdit, FaPlus } from 'react-icons/fa';
+
+// Importation des thunks CRUD et du reset
+import { 
+    createArticle, 
+    updateArticle, 
+    getArticles, 
+    reset 
+} from '../features/article/articleSlice';
+
+import Spinner from '../components/Spinner';
+
+// Composant de chargement simple (réutilisé de Dashboard.jsx)
+const SpinnerComponent = () => (
+    <div className='loadingSpinnerContainer'>
+        <div className='loadingSpinner'></div>
+    </div>
+);
+
 
 function EditArticle() {
+    // Hooks de routage et Redux
+    const { id: articleId } = useParams(); // Récupère l'ID (ou 'new') depuis l'URL
     const navigate = useNavigate();
-    // Utilisation de useParams pour obtenir l'ID de l'article depuis l'URL
-    const { id } = useParams(); 
+    const dispatch = useDispatch();
 
-    // État pour stocker les données de l'article (initialisé avec des chaînes vides)
+    // États Redux
+    const { client } = useSelector((state) => state.auth);
+    const { articles, isLoading, isError, isSuccess, message } = useSelector((state) => state.articles);
+
+    // Initialisation du formulaire
     const [formData, setFormData] = useState({
-        nom: '', 
+        nom: '',
         description: '',
-        prix: '', 
-        quantiteStock: '',
+        prix: 0,
+        quantiteStock: 0,
+        categorie: '',
     });
 
-    // État pour gérer les messages et le chargement
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    const { nom, description, prix, quantiteStock } = formData;
-    const client = JSON.parse(localStorage.getItem('client'));
-    const token = client ? client.token : null;
-
-    // Redirection si non connecté
+    const isEditMode = articleId !== 'new'; // Vrai si on est en mode édition
+    // Trouver l'article actuel pour l'édition, en se basant sur l'état Redux
+    const currentArticle = isEditMode ? articles.find(a => a._id === articleId) : null;
+    
+    // =========================================================================
+    // 1. Logique d'initialisation et de chargement des données
+    // =========================================================================
+    
     useEffect(() => {
-        if (!client) {
+        // Redirection si l'utilisateur n'est pas Admin
+        if (!client || !client.isAdmin) {
             navigate('/login');
+            return;
         }
-    }, [client, navigate]);
 
-    // ----------------------------------------------------
-    // 1. FONCTION POUR CHARGER LES DONNÉES DE L'ARTICLE EXISTANT
-    // ----------------------------------------------------
-    useEffect(() => {
-        const fetchArticleData = async () => {
-            if (!token || !id) {
-                setLoading(false);
-                return;
-            }
+        // Si une erreur de Redux survient
+        if (isError) {
+            toast.error(message);
+        }
 
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            };
+        // Si on est en mode édition et que les articles ne sont pas encore chargés dans Redux,
+        // on lance la récupération (cela permet de peupler le formulaire)
+        if (isEditMode && articles.length === 0) {
+             dispatch(getArticles());
+        }
 
-            try {
-                // Appel API GET /api/articles/:id
-                const response = await axios.get(`http://localhost:5000/api/articles/${id}`, config);
-                const articleData = response.data;
+        // Si on est en mode édition et que l'article est trouvé
+        if (isEditMode && currentArticle) {
+            // Remplissage du formulaire avec les données de l'article
+            setFormData({
+                nom: currentArticle.nom || '',
+                description: currentArticle.description || '',
+                // Assurez-vous que les valeurs numériques sont prêtes pour le formulaire
+                prix: currentArticle.prix || 0,
+                quantiteStock: currentArticle.quantiteStock || 0,
+                categorie: currentArticle.categorie || '',
+            });
+        }
+        
+        // Si on est en mode édition mais que l'article n'est pas trouvé (après chargement)
+        if (isEditMode && articles.length > 0 && !currentArticle && !isLoading) {
+            toast.error("Article non trouvé.");
+            navigate('/dashboard'); // Retour au dashboard
+        }
 
-                // Pré-remplir le formulaire avec les données existantes
-                setFormData({
-                    nom: articleData.nom || '',
-                    description: articleData.description || '',
-                    // Convertir en chaînes pour éviter l'affichage de '0' 
-                    prix: articleData.prix.toString(), 
-                    quantiteStock: articleData.quantiteStock.toString(),
-                });
-                setLoading(false);
-
-            } catch (err) {
-                console.error('Erreur lors du chargement de l\'article:', err);
-                const errorMessage = 'Impossible de charger les données de l\'article. Peut-être non autorisé.';
-                setError(errorMessage);
-                // MODIFICATION : Remplacement de l'alerte locale par un toast
-                toast.error(errorMessage);
-                setLoading(false);
-            }
+        // Nettoyage des flags d'état Redux (isSuccess, isError, message)
+        return () => {
+            dispatch(reset());
         };
+        // Dépendances : Assurez-vous d'avoir toutes les dépendances nécessaires ici
+        // Les dépendances 'currentArticle' et 'articles.length' gèrent le cycle de vie du chargement
+    }, [client, articleId, articles.length, isEditMode, currentArticle, isError, message, navigate, dispatch]);
 
-        fetchArticleData();
-    }, [id, token, navigate]);
 
-    // ----------------------------------------------------
-    // 2. FONCTION POUR GÉRER LE CHANGEMENT DES CHAMPS
-    // ----------------------------------------------------
+    // =========================================================================
+    // 2. Gestion des changements et de la soumission du formulaire
+    // =========================================================================
+    
+    // Gère la mise à jour des champs (nom, prix, etc.)
     const onChange = (e) => {
+        let value = e.target.value;
+        const name = e.target.name;
+
+        // Conversion en nombre pour les champs numériques
+        if (name === 'prix' || name === 'quantiteStock') {
+            // Utiliser parseFloat pour le prix (peut être décimal)
+            value = parseFloat(value);
+            if (isNaN(value)) {
+                // Empêche la saisie de caractères non numériques et conserve la valeur vide ou précédente
+                value = e.target.type === 'number' ? '' : e.target.value; 
+            }
+        }
+
         setFormData((prevState) => ({
             ...prevState,
-            [e.target.name]: e.target.value,
+            [name]: value,
         }));
     };
 
-    // ----------------------------------------------------
-    // 3. FONCTION POUR LA SOUMISSION DU FORMULAIRE (UPDATE)
-    // ----------------------------------------------------
-    const onSubmit = async (e) => {
+    // Gère la soumission du formulaire
+    const onSubmit = (e) => {
         e.preventDefault();
-        
-        const updatedArticleData = {
-            nom, 
-            description,
-            // S'assurer de la conversion avant l'envoi
-            prix: parseFloat(prix || 0),
-            quantiteStock: parseInt(quantiteStock || 0), 
-        };
-        
-        const config = {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        };
 
-        try {
-            // Appel API PUT pour la modification
-            await axios.put(`http://localhost:5000/api/articles/${id}`, updatedArticleData, config);
+        // Vérification simple des données
+        if (!formData.nom || !formData.description || formData.prix <= 0 || formData.quantiteStock < 0 || formData.prix === '') {
+            toast.error("Veuillez vérifier les champs obligatoires (nom, description, prix > 0, quantité >= 0).");
+            return;
+        }
+
+        if (isEditMode) {
+            // === LOGIQUE DE MODIFICATION (UPDATE) ===
+            const dataToUpdate = {
+                id: articleId, // L'ID est requis pour la route PUT
+                // Assurez-vous que les données envoyées sont au format attendu par le backend (ex: prix en tant que nombre)
+                nom: formData.nom,
+                description: formData.description,
+                prix: parseFloat(formData.prix),
+                quantiteStock: parseInt(formData.quantiteStock, 10),
+                categorie: formData.categorie,
+            };
             
-            // MODIFICATION : Remplacement de l'alerte par un toast de succès
-            toast.success(`Article "${nom}" mis à jour avec succès.`);
-            // Rediriger l'utilisateur vers le dashboard après la modification
-            navigate('/dashboard');
+            dispatch(updateArticle(dataToUpdate))
+                .unwrap() // Permet de gérer le fulfilled ou rejected avec .then/.catch
+                .then(() => {
+                    toast.success('Article mis à jour avec succès !');
+                    navigate('/dashboard');
+                })
+                .catch((error) => {
+                    // L'erreur est déjà toastée dans le slice, mais on peut ajouter un message générique ici
+                    toast.error(`Erreur de mise à jour : ${error}`);
+                });
+
+        } else {
+            // === LOGIQUE DE CRÉATION (CREATE) ===
+            const dataToCreate = {
+                // Assurez-vous que les données envoyées sont au format attendu par le backend
+                nom: formData.nom,
+                description: formData.description,
+                prix: parseFloat(formData.prix),
+                quantiteStock: parseInt(formData.quantiteStock, 10),
+                categorie: formData.categorie,
+            };
             
-        } catch (error) {
-            const errorMessage = (error.response && error.response.data && error.response.data.message) || 'Erreur lors de la mise à jour de l\'article.';
-            // MODIFICATION : Remplacement de l'alerte par un toast d'erreur
-            toast.error(errorMessage);
-            console.error('Erreur de mise à jour:', error);
+            dispatch(createArticle(dataToCreate))
+                .unwrap()
+                .then(() => {
+                    toast.success('Article créé avec succès !');
+                    navigate('/dashboard');
+                })
+                .catch((error) => {
+                    toast.error(`Erreur de création : ${error}`);
+                });
         }
     };
 
-    // Rendu du composant (Chargement / Erreur)
-    if (loading) {
-        return <h1>Chargement des données de l'article...</h1>;
-    }
+    // =========================================================================
+    // 3. Affichage du composant
+    // =========================================================================
 
-    if (error) {
-        // La gestion de l'erreur dans le JSX peut rester car elle bloque l'affichage du formulaire
-        return <h1>Erreur: {error}</h1>;
+    // Affichage du spinner pendant le chargement des articles pour l'édition
+    if (isLoading && isEditMode && articles.length === 0) {
+        return <SpinnerComponent />;
     }
+    
+    // Si on est en mode édition et que l'article n'est pas encore chargé/trouvé
+    if (isEditMode && !currentArticle) {
+        // Si le chargement est terminé mais que l'article n'a pas été trouvé (ce cas est géré dans l'useEffect)
+        if (!isLoading && articles.length > 0) {
+            return null; // L'useEffect s'occupera de la redirection et du toast
+        }
+        // Sinon, on affiche le spinner tant qu'on charge
+        return <SpinnerComponent />;
+    }
+    
+    // Affichage du spinner pendant le chargement pour les actions (création/mise à jour)
+    if (isLoading) {
+         // Si isLoading est true ici, cela signifie que le thunk est en cours (update/create)
+         // On peut afficher le formulaire, mais désactiver le bouton de soumission
+    }
+    
+    const pageTitle = isEditMode ? `Modifier l'Article: ${currentArticle?.nom || 'Chargement...'}` : "Créer un Nouvel Article";
 
     return (
-        <section className='container'>
-            <header className='heading'>
-                <h1>Modification de l'Article</h1>
-                <p>Mettez à jour les informations de: **{nom}**</p>
-            </header>
+        <div className="max-w-4xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-2xl">
+            <section className='heading mb-8'>
+                <h1 className="text-4xl font-bold text-gray-800 flex items-center mb-2">
+                    {isEditMode ? <FaEdit className="mr-3 text-indigo-600" /> : <FaPlus className="mr-3 text-green-600" />}
+                    {pageTitle}
+                </h1>
+                <p className='text-lg text-gray-600'>Remplissez les informations de l'article</p>
+            </section>
 
-            <section className='article-form'>
-                <form onSubmit={onSubmit}>
-                    
-                    {/* Champ NOM */}
+            <section className='form'>
+                <form onSubmit={onSubmit} className="space-y-6">
+                    {/* Nom de l'Article */}
                     <div className='form-group'>
-                        <label htmlFor='nom'>Nom de l'article</label>
+                        <label htmlFor='nom' className="block text-sm font-medium text-gray-700">Nom de l'Article *</label>
                         <input
                             type='text'
-                            name='nom'
+                            className='form-control w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'
                             id='nom'
-                            className='form-control'
-                            value={nom}
+                            name='nom'
+                            value={formData.nom}
                             onChange={onChange}
                             required
                         />
                     </div>
-
-                    {/* Champ Description */}
+                    
+                    {/* Description */}
                     <div className='form-group'>
-                        <label htmlFor='description'>Description</label>
+                        <label htmlFor='description' className="block text-sm font-medium text-gray-700">Description *</label>
                         <textarea
-                            name='description'
+                            className='form-control w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'
                             id='description'
-                            className='form-control'
-                            value={description}
+                            name='description'
+                            value={formData.description}
                             onChange={onChange}
+                            rows='4'
                             required
                         ></textarea>
                     </div>
-                    
-                    {/* Champ Prix */}
-                    <div className='form-group'>
-                        <label htmlFor='prix'>Prix (en devise locale)</label>
-                        <input
-                            type='number'
-                            name='prix'
-                            id='prix'
-                            className='form-control'
-                            value={prix}
-                            onChange={onChange}
-                            min='0'
-                            step='0.01'
-                            required
-                        />
+
+                    {/* Prix et Quantité (Flex Row) */}
+                    <div className="flex space-x-4">
+                        {/* Prix */}
+                        <div className='form-group flex-1'>
+                            <label htmlFor='prix' className="block text-sm font-medium text-gray-700">Prix (€) *</label>
+                            <input
+                                type='number'
+                                step='0.01'
+                                className='form-control w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'
+                                id='prix'
+                                name='prix'
+                                value={formData.prix}
+                                onChange={onChange}
+                                min='0'
+                                required
+                            />
+                        </div>
+
+                        {/* Quantité en Stock */}
+                        <div className='form-group flex-1'>
+                            <label htmlFor='quantiteStock' className="block text-sm font-medium text-gray-700">Quantité en Stock *</label>
+                            <input
+                                type='number'
+                                className='form-control w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'
+                                id='quantiteStock'
+                                name='quantiteStock'
+                                value={formData.quantiteStock}
+                                onChange={onChange}
+                                min='0'
+                                required
+                            />
+                        </div>
                     </div>
 
-                    {/* Champ QUANTITÉ EN STOCK */}
+                    {/* Catégorie */}
                     <div className='form-group'>
-                        <label htmlFor='quantiteStock'>Quantité en stock</label>
+                        <label htmlFor='categorie' className="block text-sm font-medium text-gray-700">Catégorie</label>
                         <input
-                            type='number'
-                            name='quantiteStock'
-                            id='quantiteStock'
-                            className='form-control'
-                            value={quantiteStock}
+                            type='text'
+                            className='form-control w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500'
+                            id='categorie'
+                            name='categorie'
+                            value={formData.categorie}
                             onChange={onChange}
-                            min='0'
-                            required
+                            placeholder='Ex: Électronique, Vêtements...'
                         />
                     </div>
                     
-                    {/* Bouton de Soumission */}
-                    <div className='form-group'>
-                        <button type='submit' className='btn btn-block'>
-                            Mettre à jour l'Article
+                    {/* Bouton de soumission */}
+                    <div className='form-group pt-4'>
+                        <button 
+                            type='submit' 
+                            className={`w-full py-3 text-white font-bold rounded-lg shadow-lg transition duration-300 ${isEditMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-green-600 hover:bg-green-700'}`}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 'Traitement...' : isEditMode ? 'Mettre à Jour l\'Article' : 'Créer l\'Article'}
                         </button>
                     </div>
                 </form>
             </section>
-        </section>
+        </div>
     );
 }
 

@@ -1,10 +1,14 @@
 {
   "dependencies": {
+<<<<<<< HEAD
     "@reduxjs/toolkit": "^2.10.1",
     "axios": "^1.13.2",
     "react-icons": "^5.5.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.9.6",
+=======
+    "@vitejs/plugin-react": "^5.1.1",
+>>>>>>> 6b31c0e46f8990b495ff8609a934f218cd9ecde9
     "react-toastify": "^11.0.5"
   }
 }

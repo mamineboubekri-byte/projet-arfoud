@@ -1,32 +1,35 @@
-// Fichier: frontend/src/App.jsx (Mise à jour pour inclure la route de modification)
+// Fichier: src/App.jsx (ou App.js)
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
+import { ToastContainer } from 'react-toastify'; 
+import 'react-toastify/dist/ReactToastify.css';
+
+// Importation des pages et composants
+import Header from './components/Header'; 
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import EditArticle from './pages/EditArticle'; // <-- NOUVEL IMPORT
-
-import Navbar from './components/Navbar';
+import EditArticle from './pages/EditArticle'; 
 
 function App() {
   return (
     <>
       <Router>
         <div className='container'>
-          <Navbar />
+          <Header /> 
           <Routes>
-            <Route path='/' element={<Home />} />
-            <Route path='/dashboard' element={<Dashboard />} />
+            {/* 🚨 CORRECTION 1.1: Route principale pour le Dashboard */}
+            {/* Assurez-vous que toutes les redirections post-connexion utilisent '/' */}
+            <Route path='/' element={<Dashboard />} /> 
+            
             <Route path='/login' element={<Login />} />
             <Route path='/register' element={<Register />} />
-            
-            {/* NOUVELLE ROUTE : Page de Modification d'Article avec ID paramètre */}
             <Route path='/edit-article/:id' element={<EditArticle />} /> 
-
           </Routes>
         </div>
       </Router>
+      
+      <ToastContainer /> 
     </>
   );
 }
