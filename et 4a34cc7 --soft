@@ -1,0 +1,22 @@
+[33m59f22e0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m feat(ux): Remplacement des alertes par des toasts dans EditArticle.jsx
+[33m4a34cc7[m feat(article): Implémentation de la page EditArticle (sans Redux) et nettoyage du ArticleForm
+[33m6227c5e[m feat(article): Ajout complet du thunk et service updateArticle pour la modification
+[33m3def34e[m crud articles ok clients ok
+[33m9fade7c[m refactor(ui): Centralisation de la gestion des messages de succès/erreur post-action dans Dashboard
+[33mb2baffc[m feat(dashboard): Sécurisation complète du rendu et affichage de la longueur des articles
+[33ma9b5a86[m feat(ui): Implémentation du Dashboard en utilisant Redux Toolkit pour le CRUD Articles
+[33m4ade5df[m feat(store): Intégration du articleSlice dans le Redux store
+[33m5c07c6b[m fix(auth): Correction de l'incohérence Front/Backend en renommant 'password' en 'motDePasse' dans Login.jsx
+[33m186d4af[m feat(redux): Connexion du slice d'authentification au store
+[33md8b864b[m feat(redux): Initialisation de Redux Toolkit et correction de la configuration du store
+[33m400dfab[m feat(redux): Initialisation de Redux Toolkit et correction de la configuration du store
+[33m8f060c9[m feat(article): Implémentation du routing et pré-remplissage du formulaire de modification
+[33m77e4b6d[m fix(deps): Installation de react-icons pour les icônes du CRUD
+[33md2a6756[m feat(article): Implémentation et validation du formulaire de création d'article (CRUD Create)
+[33m486463f[m feat: Backend CRUD et Auth complétés. Initialisation du Frontend React/Vite.
+[33ma44f53a[m Create CDC_Section_III_Technique.md
+[33m7490a9c[m Create CDC_Section_IV_Plan_Travail.md
+[33m48500a2[m Create CDC_Section_II_Fonctionnel.md
+[33m18a3850[m Create CHARTE_COLLABORATION.md
+[33ma9c7a82[m Update README.md
+[33m40eec53[m Initial commit
